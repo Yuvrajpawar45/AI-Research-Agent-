@@ -23,7 +23,8 @@ MAX_SUB_QUESTIONS = 6          # How many sub-questions to decompose into
 SOURCES_PER_QUERY  = 5         # Web results fetched per sub-question
 MIN_CREDIBLE_SOURCES = 2       # Minimum before triggering re-search loop
 MAX_SEARCH_LOOPS   = 2         # Maximum re-search iterations
-CONFIDENCE_THRESHOLD = 0.6     # Relevance score to keep a source (0–1)
+CONFIDENCE_THRESHOLD = 0.6     # Relevance score to keep a source (0-1)
+MAX_PARALLEL_RESEARCH = int(os.getenv("MAX_PARALLEL_RESEARCH", "3"))
 
 # ── Output ─────────────────────────────────────────────────────
 OUTPUT_DIR = "output"

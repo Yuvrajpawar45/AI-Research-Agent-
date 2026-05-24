@@ -25,7 +25,7 @@ class ResearchOrchestrator:
         self.gap_checker = GapChecker()
         self.synthesizer = Synthesizer()
 
-    async def _research_sub_question(
+    def _research_sub_question(
         self,
         sub_question: str,
         question_idx: int,
@@ -77,20 +77,35 @@ class ResearchOrchestrator:
 
         return all_findings
 
-    async def run(self, topic: str) -> str:
+    async def run(self, topic: str, max_sub_questions: int | None = None) -> str:
         """Run the full research agent pipeline."""
 
         # ── STEP 1: Plan ────────────────────────────────────────
-        plan = self.planner.decompose(topic)
+        plan = self.planner.decompose(topic, max_sub_questions=max_sub_questions)
 
         # ── STEPS 2–5: Research each sub-question ───────────────
         print(f"\n\n🔬 Researching {len(plan['sub_questions'])} sub-questions...")
+        max_parallel = max(1, min(config.MAX_PARALLEL_RESEARCH, len(plan["sub_questions"])))
+        print(f"   Parallel workers: {max_parallel}")
         all_findings: dict[str, list[dict]] = {}
 
-        for i, question in enumerate(plan["sub_questions"], 1):
-            findings = await self._research_sub_question(
-                question, i, len(plan["sub_questions"])
-            )
+        semaphore = asyncio.Semaphore(max_parallel)
+
+        async def run_one(i: int, question: str) -> tuple[str, list[dict]]:
+            async with semaphore:
+                findings = await asyncio.to_thread(
+                    self._research_sub_question,
+                    question,
+                    i,
+                    len(plan["sub_questions"]),
+                )
+                return question, findings
+
+        tasks = [
+            run_one(i, question)
+            for i, question in enumerate(plan["sub_questions"], 1)
+        ]
+        for question, findings in await asyncio.gather(*tasks):
             all_findings[question] = findings
 
         # ── STEP 6: Synthesize ───────────────────────────────────

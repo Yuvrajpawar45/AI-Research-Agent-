@@ -7,6 +7,7 @@ import os
 import json
 from datetime import datetime
 import config
+from agent.evaluator import ResearchEvaluator
 
 
 def slugify(text: str) -> str:
@@ -25,6 +26,7 @@ def save_report(
 
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     base_name = f"{slugify(title)}_{timestamp}"
+    quality_report = ResearchEvaluator().evaluate(all_findings)
 
     # ── Save Markdown report ───────────────────────────────────
     md_path = os.path.join(config.OUTPUT_DIR, f"{base_name}.md")
@@ -40,12 +42,17 @@ def save_report(
             {
                 "title": title,
                 "generated_at": datetime.now().isoformat(),
+                "quality_report": quality_report,
                 "findings": all_findings,
             },
             f,
             indent=2,
             ensure_ascii=False,
         )
+
+    quality_path = os.path.join(config.OUTPUT_DIR, f"{base_name}_quality.json")
+    with open(quality_path, "w", encoding="utf-8") as f:
+        json.dump(quality_report, f, indent=2, ensure_ascii=False)
 
     # ── Save simple HTML version ───────────────────────────────
     try:
@@ -61,6 +68,7 @@ def save_report(
 
     print(f"   📝 Markdown report: {md_path}")
     print(f"   🗄️  Findings JSON:  {json_path}")
+    print(f"   Quality report:  {quality_path}")
     return md_path
 
 

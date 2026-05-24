@@ -34,15 +34,17 @@ class Planner:
     def __init__(self):
         self.llm = LLMClient()
 
-    def decompose(self, topic: str) -> dict:
+    def decompose(self, topic: str, max_sub_questions: int | None = None) -> dict:
         """Break the topic into sub-questions and plan the report structure."""
         print(f"\n📋 [PLAN] Decomposing topic: '{topic}'")
+
+        question_count = max_sub_questions or config.MAX_SUB_QUESTIONS
 
         result = self.llm.chat_json(
             system=SYSTEM_PLANNER,
             user=(
                 f"Research topic: {topic}\n\n"
-                f"Generate {config.MAX_SUB_QUESTIONS} specific sub-questions "
+                f"Generate {question_count} specific sub-questions "
                 f"and a matching report outline."
             ),
         )

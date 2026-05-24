@@ -35,6 +35,7 @@ def output_links(report_path: str) -> dict:
         "markdown": report,
         "html": base.with_suffix(".html"),
         "findings": Path(f"{base}_findings.json"),
+        "quality": Path(f"{base}_quality.json"),
     }
     return {
         key: f"/output/{path.name}"
