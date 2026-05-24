@@ -1,0 +1,15 @@
+# AI Research Agent — Python dependencies
+# Install with: pip install -r requirements.txt
+
+# Core
+openai>=1.30.0          # Groq uses OpenAI-compatible API
+requests>=2.31.0
+python-dotenv>=1.0.0
+
+# Optional but recommended
+pymupdf>=1.24.0         # PDF parsing (pip install pymupdf)
+markdown>=3.5.0         # HTML report output
+
+# The agent uses:
+#   Groq  → https://console.groq.com    (free LLaMA 3.3-70B)
+#   Tavily → https://app.tavily.com     (free 1000 searches/month)
