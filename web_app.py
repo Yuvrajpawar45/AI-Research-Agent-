@@ -130,501 +130,636 @@ HTML = r"""<!doctype html>
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>ResearchAgent - Battle Plan</title>
+  <title>Research Agent - Autonomous Research Workspace</title>
   <style>
     :root {
-      --bg: #f8f7f4;
-      --card: #fffefd;
-      --ink: #171717;
-      --muted: #7a7a76;
-      --line: #ddd9d2;
-      --green: #047869;
-      --green-soft: #e5f4f1;
-      --red: #d92d20;
-      --red-soft: #fff0ed;
-      --amber: #9a6a00;
-      --amber-soft: #fff5d7;
-      --blue: #315db6;
-      --blue-soft: #edf3ff;
-      --violet: #6d4fd1;
-      --violet-soft: #f2eeff;
-      --shadow: 0 10px 26px rgba(22, 20, 16, .05);
+      --brand: #0f766e;
+      --brand-dark: #115e59;
+      --brand-soft: #e6f4f1;
+      --accent: #f97316;
+      --accent-soft: #fff3e8;
+      --ink: #1f2933;
+      --muted: #697586;
+      --line: #ded8cd;
+      --surface: #fffefb;
+      --panel: #f6f3ee;
+      --footer: #1f2933;
+      --shadow: 0 18px 40px rgba(62, 53, 42, 0.09);
     }
 
     * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
     body {
       margin: 0;
-      background: var(--bg);
+      background: #fbfaf7;
       color: var(--ink);
       font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      line-height: 1.5;
+      line-height: 1.55;
     }
-    button, textarea { font: inherit; }
     a { color: inherit; text-decoration: none; }
-    .page {
-      width: min(1180px, calc(100% - 44px));
+    .nav {
+      position: fixed;
+      inset: 0 0 auto;
+      z-index: 20;
+      height: 64px;
+      background: rgba(251, 250, 247, 0.9);
+      border-bottom: 1px solid rgba(222, 216, 205, 0.85);
+      backdrop-filter: blur(18px);
+    }
+    .nav-inner, .wrap {
+      width: min(1120px, calc(100% - 48px));
       margin: 0 auto;
-      padding: 34px 0 46px;
     }
-    .topline {
+    .nav-inner {
+      height: 64px;
       display: flex;
-      gap: 10px;
-      flex-wrap: wrap;
-      margin-bottom: 20px;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
     }
-    .pill {
+    .brand {
       display: inline-flex;
       align-items: center;
-      min-height: 28px;
-      padding: 0 14px;
-      border-radius: 999px;
-      border: 1px solid var(--line);
-      background: var(--card);
-      color: var(--muted);
-      font-size: 12px;
-      font-weight: 800;
-      letter-spacing: .08em;
-      text-transform: uppercase;
-    }
-    .pill.green { color: var(--green); border-color: #8bd6cb; background: var(--green-soft); }
-    .pill.red { color: var(--red); border-color: #ffc5bd; background: var(--red-soft); }
-    .pill.amber { color: var(--amber); border-color: #efd382; background: var(--amber-soft); }
-    h1 {
-      max-width: 640px;
-      margin: 0;
-      font-size: clamp(34px, 5vw, 52px);
-      line-height: 1.04;
-      letter-spacing: 0;
-    }
-    h1 span { color: var(--green); }
-    .sub {
-      margin: 14px 0 34px;
-      color: var(--muted);
-      font-size: 16px;
-    }
-    .score-grid {
-      display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-      gap: 18px;
-      margin-bottom: 34px;
-    }
-    .score-card, .panel, .gap, .week, .advantage, .runner {
-      border: 1px solid var(--line);
-      border-radius: 18px;
-      background: var(--card);
-      box-shadow: var(--shadow);
-    }
-    .score-card {
-      padding: 22px 22px 18px;
-      text-align: center;
-    }
-    .score-card small {
-      display: block;
-      color: #858581;
-      font-size: 12px;
-      font-weight: 800;
-      letter-spacing: .08em;
-      text-transform: uppercase;
-    }
-    .score {
-      margin: 8px 0 6px;
-      font-size: 44px;
-      line-height: 1;
-      font-weight: 500;
-      color: var(--tone);
-    }
-    .meter {
-      height: 8px;
-      border-radius: 999px;
-      overflow: hidden;
-      background: #ece9e3;
-    }
-    .meter span {
-      display: block;
-      width: var(--width);
-      height: 100%;
-      border-radius: inherit;
-      background: var(--tone);
-    }
-    .score-card p {
-      margin: 8px 0 0;
-      color: #84817c;
-      font-size: 12px;
-    }
-    .compare {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 18px;
-      margin-bottom: 40px;
-    }
-    .panel { padding: 22px; }
-    .section-label {
-      margin: 0 0 18px;
-      color: var(--label);
-      font-size: 13px;
-      font-weight: 900;
-      letter-spacing: .08em;
-      text-transform: uppercase;
-    }
-    .checklist {
-      display: grid;
-      gap: 0;
-      margin: 0;
-      padding: 0;
-      list-style: none;
-    }
-    .checklist li {
-      display: grid;
-      grid-template-columns: 12px 1fr;
       gap: 10px;
-      padding: 9px 0;
-      border-bottom: 1px solid #ece8e1;
-      color: #44423f;
-      font-size: 14px;
+      font-weight: 800;
+      font-size: 18px;
     }
-    .checklist li:last-child { border-bottom: 0; }
-    .dot {
-      width: 8px;
-      height: 8px;
-      margin-top: 7px;
-      border-radius: 50%;
-      background: var(--dot);
-    }
-    .block-title {
-      margin: 0 0 18px;
-      color: #7d7b76;
-      font-size: 13px;
-      font-weight: 900;
-      letter-spacing: .13em;
-      text-transform: uppercase;
-    }
-    .gap-list {
-      display: grid;
-      gap: 14px;
-      margin-bottom: 44px;
-    }
-    .gap {
-      display: grid;
-      grid-template-columns: 56px 1fr auto;
-      gap: 18px;
-      align-items: start;
-      padding: 20px;
-    }
-    .gap-icon {
-      width: 42px;
-      height: 42px;
+    .mark {
+      width: 34px;
+      height: 34px;
+      border-radius: 10px;
+      background: var(--brand);
+      color: white;
       display: grid;
       place-items: center;
-      border-radius: 12px;
-      color: var(--tone);
-      background: var(--soft);
+      box-shadow: 0 12px 24px rgba(15, 118, 110, 0.22);
     }
-    .gap h3, .week h3 {
-      margin: 0 0 5px;
-      font-size: 16px;
-      line-height: 1.3;
+    .brand span span { color: var(--brand); }
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 30px;
+      color: #5f6c7b;
+      font-size: 14px;
+      font-weight: 650;
     }
-    .gap p, .week p {
+    .nav-links a:hover { color: var(--brand); }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      min-height: 42px;
+      padding: 0 18px;
+      border-radius: 11px;
+      border: 1px solid transparent;
+      background: var(--brand);
+      color: #fff;
+      font: inherit;
+      font-weight: 750;
+      cursor: pointer;
+      box-shadow: 0 14px 26px rgba(15, 118, 110, 0.2);
+    }
+    .btn:hover { background: var(--brand-dark); }
+    .btn.secondary {
+      background: white;
+      color: #334155;
+      border-color: var(--line);
+      box-shadow: 0 12px 24px rgba(15, 23, 42, 0.04);
+    }
+    .btn:disabled {
+      opacity: .72;
+      cursor: wait;
+    }
+    .hero {
+      position: relative;
+      min-height: 100vh;
+      display: grid;
+      align-items: center;
+      overflow: hidden;
+      padding: 116px 0 84px;
+    }
+    .hero::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      z-index: -2;
+      background:
+        linear-gradient(180deg, rgba(255,255,255,.72), rgba(251,250,247,.95)),
+        radial-gradient(circle at 12% 18%, rgba(15,118,110,.15), transparent 32%),
+        radial-gradient(circle at 88% 18%, rgba(249,115,22,.15), transparent 28%),
+        radial-gradient(circle at 50% 86%, rgba(20,184,166,.12), transparent 30%),
+        #fbfaf7;
+    }
+    .hero::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      z-index: -1;
+      opacity: .35;
+      background-image:
+        linear-gradient(rgba(31,41,51,.045) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(31,41,51,.045) 1px, transparent 1px);
+      background-size: 42px 42px;
+    }
+    .center { text-align: center; }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 15px;
+      border-radius: 999px;
+      border: 1px solid #b7ded8;
+      background: rgba(230, 244, 241, .9);
+      color: var(--brand-dark);
+      font-size: 14px;
+      font-weight: 700;
+      box-shadow: 0 10px 24px rgba(15, 118, 110, .08);
+    }
+    h1 {
+      max-width: 880px;
+      margin: 30px auto 22px;
+      font-size: clamp(48px, 8vw, 84px);
+      line-height: 1.05;
+      letter-spacing: 0;
+    }
+    .gradient-text {
+      color: transparent;
+      background: linear-gradient(90deg, #0f766e, #14b8a6, #f97316);
+      -webkit-background-clip: text;
+      background-clip: text;
+    }
+    .hero p {
+      max-width: 720px;
+      margin: 0 auto;
+      color: var(--muted);
+      font-size: 20px;
+    }
+    .hero-actions {
+      display: flex;
+      justify-content: center;
+      gap: 14px;
+      margin: 36px 0 72px;
+      flex-wrap: wrap;
+    }
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 16px;
+      max-width: 720px;
+      margin: 0 auto;
+    }
+    .glass {
+      min-height: 122px;
+      padding: 20px;
+      border: 1px solid rgba(222, 216, 205, .9);
+      border-radius: 18px;
+      background: rgba(255, 255, 255, .72);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(18px);
+      display: grid;
+      place-items: center;
+      gap: 5px;
+    }
+    .glass svg { color: var(--brand); }
+    .glass strong { color: var(--brand-dark); font-size: 14px; }
+    .glass span { color: #8a8278; font-size: 13px; }
+    section { padding: 112px 0; }
+    .soft { background: var(--panel); }
+    .section-head {
+      text-align: center;
+      max-width: 760px;
+      margin: 0 auto 58px;
+    }
+    .kicker {
+      display: inline-flex;
+      padding: 6px 15px;
+      border-radius: 999px;
+      background: var(--brand-soft);
+      color: var(--brand-dark);
+      font-size: 14px;
+      font-weight: 800;
+      margin-bottom: 18px;
+    }
+    h2 {
+      margin: 0 0 15px;
+      font-size: clamp(34px, 5vw, 52px);
+      line-height: 1.08;
+      letter-spacing: 0;
+    }
+    .section-head p {
+      margin: 0 auto;
+      color: var(--muted);
+      font-size: 18px;
+      max-width: 680px;
+    }
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 22px;
+    }
+    .card {
+      padding: 26px;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: var(--surface);
+      box-shadow: 0 14px 34px rgba(15, 23, 42, 0.04);
+      transition: transform .18s ease, box-shadow .18s ease;
+    }
+    .card:hover {
+      transform: translateY(-3px);
+      box-shadow: var(--shadow);
+    }
+    .icon {
+      width: 46px;
+      height: 46px;
+      border-radius: 14px;
+      display: grid;
+      place-items: center;
+      margin-bottom: 18px;
+      border: 1px solid currentColor;
+      background: color-mix(in srgb, currentColor 10%, white);
+    }
+    .card-title {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 10px;
+      margin-bottom: 11px;
+    }
+    .card h3 {
+      margin: 0;
+      font-size: 19px;
+      line-height: 1.25;
+    }
+    .chip {
+      flex: none;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: #f8f6f2;
+      color: #706a61;
+      padding: 3px 10px;
+      font-size: 12px;
+      font-weight: 700;
+    }
+    .card p {
       margin: 0;
       color: var(--muted);
       font-size: 14px;
     }
-    .priority {
+    .timeline {
+      position: relative;
+      max-width: 820px;
+      margin: 0 auto;
       display: grid;
-      justify-items: end;
-      gap: 6px;
-      color: #8d8880;
-      font-size: 12px;
-      white-space: nowrap;
+      gap: 22px;
     }
-    .priority span {
-      padding: 3px 10px;
-      border-radius: 999px;
-      background: var(--soft);
-      color: var(--tone);
-      font-weight: 900;
-      letter-spacing: .06em;
-      text-transform: uppercase;
+    .timeline::before {
+      content: "";
+      position: absolute;
+      left: 20px;
+      top: 36px;
+      bottom: 36px;
+      width: 1px;
+      background: linear-gradient(#f97316, #0f766e, #14b8a6, #7c3aed);
     }
-    .weeks {
+    .step {
       display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 18px;
-      margin-bottom: 44px;
+      grid-template-columns: 40px 1fr;
+      gap: 20px;
+      align-items: start;
+      position: relative;
     }
-    .week {
-      padding: 22px;
-      min-height: 190px;
-    }
-    .week small {
-      display: block;
-      margin-bottom: 12px;
-      color: #96918a;
-      font-size: 12px;
-      font-weight: 900;
-      letter-spacing: .08em;
-      text-transform: uppercase;
-    }
-    .tag {
-      display: inline-flex;
-      align-items: center;
-      margin-top: 20px;
-      min-height: 26px;
-      padding: 0 11px;
-      border-radius: 999px;
-      background: var(--soft);
-      color: var(--tone);
-      font-size: 12px;
-      font-weight: 800;
-    }
-    .advantages {
-      display: grid;
-      gap: 14px;
-      margin-bottom: 34px;
-    }
-    .advantage {
-      display: grid;
-      grid-template-columns: 18px 1fr;
-      gap: 14px;
-      padding: 20px 24px;
-      border-color: #88d8cd;
-      background: #e9f8f5;
-      color: #074f47;
-    }
-    .advantage strong { color: #05433d; }
-    .advantage p {
-      margin: 0;
-      color: #0d5c54;
-      font-size: 14px;
-    }
-    .runner {
-      display: grid;
-      grid-template-columns: 1fr auto;
-      gap: 18px;
-      align-items: center;
-      padding: 24px;
-      background: #111;
+    .num {
+      width: 40px;
+      height: 40px;
+      border-radius: 13px;
+      background: var(--step);
       color: white;
-      border-color: #111;
+      display: grid;
+      place-items: center;
+      font-size: 14px;
+      font-weight: 850;
+      box-shadow: 0 14px 26px color-mix(in srgb, var(--step) 24%, transparent);
+      z-index: 1;
     }
-    .runner h2 {
-      margin: 0 0 4px;
-      font-size: 20px;
-      letter-spacing: 0;
+    .step .card { padding: 20px; }
+    .step h3 { margin: 0 0 5px; font-size: 18px; }
+    .agent-panel {
+      max-width: 900px;
+      margin: 0 auto;
+      border: 1px solid var(--line);
+      border-radius: 22px;
+      background: white;
+      box-shadow: var(--shadow);
+      overflow: hidden;
     }
-    .runner p {
-      margin: 0;
-      color: #b9b9b9;
+    .mode-row {
+      display: flex;
+      gap: 8px;
+      padding: 18px 18px 0;
+      flex-wrap: wrap;
+    }
+    .mode {
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: #fff;
+      color: #475569;
+      padding: 8px 13px;
+      font-weight: 750;
       font-size: 14px;
     }
-    .run-form {
-      grid-column: 1 / -1;
-      display: none;
-      grid-template-columns: 1fr auto;
-      gap: 12px;
-      margin-top: 4px;
+    .mode.active {
+      background: var(--brand-soft);
+      border-color: #9fd7cf;
+      color: var(--brand-dark);
     }
-    .run-form.show { display: grid; }
+    .agent-body { padding: 18px; }
     textarea {
       width: 100%;
-      min-height: 84px;
+      min-height: 150px;
       resize: vertical;
-      border: 1px solid #333;
-      border-radius: 12px;
-      padding: 14px;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 18px;
+      color: var(--ink);
+      font: inherit;
+      font-size: 16px;
       outline: none;
-      background: #1b1b1b;
-      color: white;
+      background: #fff;
     }
-    textarea:focus { border-color: #79d3c8; }
-    .btn {
-      min-height: 48px;
-      border: 1px solid #3c3c3c;
-      border-radius: 12px;
-      padding: 0 18px;
-      background: transparent;
-      color: white;
+    textarea:focus {
+      border-color: #8dd4ca;
+      box-shadow: 0 0 0 4px rgba(15, 118, 110, .1);
+    }
+    .run-row {
+      margin-top: 12px;
+      display: flex;
+      justify-content: space-between;
+      gap: 14px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .hint { color: #94a3b8; font-size: 14px; }
+    .examples {
+      border-top: 1px solid var(--line);
+      padding: 18px;
+      background: #f8f6f2;
+    }
+    .examples h3 {
+      margin: 0 0 12px;
+      font-size: 14px;
+      color: #475569;
+    }
+    .example-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    .example {
+      text-align: left;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: #fff;
+      padding: 12px 14px;
+      color: #334155;
+      font: inherit;
       cursor: pointer;
+    }
+    .example span {
+      display: block;
+      color: var(--brand-dark);
+      font-size: 12px;
       font-weight: 800;
-    }
-    .btn.primary {
-      background: white;
-      color: #111;
-      border-color: white;
-    }
-    .btn:disabled {
-      opacity: .7;
-      cursor: wait;
+      margin-bottom: 3px;
     }
     .result {
       display: none;
-      grid-column: 1 / -1;
-      padding-top: 8px;
+      border-top: 1px solid var(--line);
+      padding: 18px;
     }
     .result.show { display: block; }
-    .links {
-      display: flex;
-      gap: 10px;
-      flex-wrap: wrap;
-      margin: 12px 0;
-    }
+    .result strong { display: block; margin-bottom: 10px; }
+    .links { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; }
     .links a {
-      padding: 8px 12px;
+      display: inline-flex;
+      min-height: 34px;
+      align-items: center;
+      padding: 0 12px;
       border-radius: 999px;
-      background: #e9f8f5;
-      color: #07564e;
-      font-size: 13px;
-      font-weight: 800;
+      background: var(--brand-soft);
+      color: var(--brand-dark);
+      font-size: 14px;
+      font-weight: 750;
     }
     pre {
-      max-height: 260px;
+      max-height: 300px;
       overflow: auto;
       margin: 0;
-      padding: 14px;
-      border-radius: 12px;
-      background: #050505;
-      color: #d7fff9;
+      padding: 15px;
+      border-radius: 14px;
+      background: #17211f;
+      color: #dcf7f2;
       font-size: 12px;
       white-space: pre-wrap;
     }
-    .error { color: #ffb4aa; }
+    .error { color: #dc2626; }
+    footer {
+      background: var(--footer);
+      color: #94a3b8;
+      padding: 54px 0 28px;
+    }
+    .footer-grid {
+      display: grid;
+      grid-template-columns: 2fr 1fr 1fr;
+      gap: 40px;
+      margin-bottom: 34px;
+    }
+    footer .brand { color: white; margin-bottom: 14px; }
+    footer p, footer li { color: #94a3b8; font-size: 14px; }
+    footer ul { list-style: none; padding: 0; margin: 0; display: grid; gap: 9px; }
+    footer h4 { margin: 0 0 14px; color: white; }
+    .footbar {
+      border-top: 1px solid #1e293b;
+      padding-top: 22px;
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+      font-size: 12px;
+      color: #64748b;
+    }
 
     @media (max-width: 820px) {
-      .score-grid, .compare, .weeks { grid-template-columns: 1fr; }
-      .gap { grid-template-columns: 46px 1fr; }
-      .priority { grid-column: 2; justify-items: start; }
-      .runner { grid-template-columns: 1fr; }
-      .run-form { grid-template-columns: 1fr; }
+      .nav-links { display: none; }
+      .stats, .cards, .footer-grid, .example-grid { grid-template-columns: 1fr; }
+      .hero { min-height: auto; }
+      h1 { font-size: clamp(42px, 13vw, 64px); }
+      .hero p { font-size: 18px; }
     }
-    @media (max-width: 520px) {
-      .page { width: min(100% - 28px, 1180px); padding-top: 22px; }
-      .gap { grid-template-columns: 1fr; }
-      .priority { grid-column: 1; }
+    @media (max-width: 560px) {
+      .nav-inner, .wrap { width: min(100% - 28px, 1120px); }
+      .nav .btn { display: none; }
+      section { padding: 82px 0; }
+      .timeline::before { display: none; }
+      .step { grid-template-columns: 1fr; gap: 12px; }
     }
   </style>
 </head>
 <body>
-  <main class="page">
-    <div class="topline">
-      <span class="pill green">Your Project</span>
-      <span class="pill red">Synapse AI</span>
-      <span class="pill amber">After Upgrades</span>
-    </div>
-
-    <h1>How to <span>outbuild Synapse AI</span> with your research agent</h1>
-    <p class="sub">A practical upgrade map for this repo: what exists now, what is missing, and what to build next.</p>
-
-    <section class="score-grid" aria-label="Project comparison scores">
-      <article class="score-card" style="--tone: var(--green); --width: 64%">
-        <small>Your project now</small>
-        <div class="score">6.5</div>
-        <div class="meter"><span></span></div>
-        <p>Clean base, simple UI, working agent</p>
-      </article>
-      <article class="score-card" style="--tone: var(--red); --width: 84%">
-        <small>Synapse AI now</small>
-        <div class="score">8.5</div>
-        <div class="meter"><span></span></div>
-        <p>Strong architecture and deployment story</p>
-      </article>
-      <article class="score-card" style="--tone: var(--amber); --width: 92%">
-        <small>Your project v2</small>
-        <div class="score">9.2</div>
-        <div class="meter"><span></span></div>
-        <p>Reachable with focused upgrades</p>
-      </article>
-    </section>
-
-    <section class="compare" aria-label="Current comparison">
-      <article class="panel" style="--label: var(--green)">
-        <h2 class="section-label">You have</h2>
-        <ul class="checklist">
-          <li><span class="dot" style="--dot:#24b65a"></span><span>Clean modular Python architecture</span></li>
-          <li><span class="dot" style="--dot:#24b65a"></span><span>Working agent loop with gap checking</span></li>
-          <li><span class="dot" style="--dot:#24b65a"></span><span>Source scoring based on relevance and recency</span></li>
-          <li><span class="dot" style="--dot:#24b65a"></span><span>Light dashboard UI wired to the backend</span></li>
-          <li><span class="dot" style="--dot:#24b65a"></span><span>Groq + Tavily free-stack implementation</span></li>
-          <li><span class="dot" style="--dot:#ef4444"></span><span>No LangGraph orchestration yet</span></li>
-          <li><span class="dot" style="--dot:#ef4444"></span><span>No vector memory for past findings</span></li>
-          <li><span class="dot" style="--dot:#ef4444"></span><span>No FastAPI streaming endpoint yet</span></li>
-          <li><span class="dot" style="--dot:#ef4444"></span><span>No deployed live demo URL</span></li>
-        </ul>
-      </article>
-      <article class="panel" style="--label: var(--red)">
-        <h2 class="section-label">Synapse has</h2>
-        <ul class="checklist">
-          <li><span class="dot" style="--dot:#24b65a"></span><span>LangGraph multi-agent workflow</span></li>
-          <li><span class="dot" style="--dot:#24b65a"></span><span>Vector memory with ChromaDB</span></li>
-          <li><span class="dot" style="--dot:#24b65a"></span><span>FastAPI plus SSE progress streaming</span></li>
-          <li><span class="dot" style="--dot:#24b65a"></span><span>Next.js frontend deployed publicly</span></li>
-          <li><span class="dot" style="--dot:#24b65a"></span><span>Docker, Railway, and Vercel story</span></li>
-          <li><span class="dot" style="--dot:#ef4444"></span><span>More complexity to explain in interviews</span></li>
-          <li><span class="dot" style="--dot:#ef4444"></span><span>No clear evaluation metrics layer</span></li>
-          <li><span class="dot" style="--dot:#ef4444"></span><span>No PDF export highlighted as shipped</span></li>
-          <li><span class="dot" style="--dot:#f59e0b"></span><span>You can own the simpler, clearer codebase</span></li>
-        </ul>
-      </article>
-    </section>
-
-    <h2 class="block-title">Critical gaps to fill - prioritized</h2>
-    <section class="gap-list" aria-label="Prioritized upgrade list">
-      <article class="gap" style="--tone:var(--red);--soft:var(--red-soft)"><div class="gap-icon">1</div><div><h3>Build commit history from now</h3><p>Make small real commits for each upgrade: UI polish, FastAPI wrapper, streaming, memory, deployment, and docs.</p></div><div class="priority"><span>Critical</span>1 day</div></article>
-      <article class="gap" style="--tone:var(--blue);--soft:var(--blue-soft)"><div class="gap-icon">2</div><div><h3>FastAPI backend with progress streaming</h3><p>Wrap the orchestrator in /api/run and /api/stream endpoints so the frontend can show live node progress.</p></div><div class="priority"><span>Critical</span>2-3 days</div></article>
-      <article class="gap" style="--tone:var(--violet);--soft:var(--violet-soft)"><div class="gap-icon">3</div><div><h3>ChromaDB vector memory</h3><p>Embed findings after each run and retrieve related findings across past reports for follow-up research.</p></div><div class="priority"><span>Critical</span>2 days</div></article>
-      <article class="gap" style="--tone:var(--red);--soft:var(--red-soft)"><div class="gap-icon">4</div><div><h3>LangGraph refactor</h3><p>Turn planner, searcher, scorer, summarizer, gap checker, and synthesizer into graph nodes with conditional edges.</p></div><div class="priority"><span>Critical</span>3-5 days</div></article>
-      <article class="gap" style="--tone:var(--amber);--soft:var(--amber-soft)"><div class="gap-icon">5</div><div><h3>Async parallel research</h3><p>Research sub-questions concurrently and show benchmark numbers against the current sequential pipeline.</p></div><div class="priority"><span>High</span>1 day</div></article>
-      <article class="gap" style="--tone:var(--green);--soft:var(--green-soft)"><div class="gap-icon">6</div><div><h3>Evaluation metrics dashboard</h3><p>Add source credibility, citation density, unsupported-claim warnings, and confidence score per finding.</p></div><div class="priority"><span>High</span>2 days</div></article>
-      <article class="gap" style="--tone:var(--blue);--soft:var(--blue-soft)"><div class="gap-icon">7</div><div><h3>Deployment path</h3><p>Deploy the backend to Railway or Render and the frontend to Vercel, then add live demo links to README.</p></div><div class="priority"><span>High</span>Half day</div></article>
-      <article class="gap" style="--tone:var(--amber);--soft:var(--amber-soft)"><div class="gap-icon">8</div><div><h3>PDF export for reports</h3><p>Add clean PDF export with citations so generated reports are presentation-ready.</p></div><div class="priority"><span>Medium</span>1 day</div></article>
-    </section>
-
-    <h2 class="block-title">4-week execution plan</h2>
-    <section class="weeks" aria-label="Four week plan">
-      <article class="week" style="--tone:var(--red);--soft:var(--red-soft)"><small>Week 01</small><h3>Fix the fundamentals</h3><p>Refactor UI, create 20+ meaningful commits, add FastAPI run endpoints, and prepare deployment configs.</p><span class="tag">Urgent</span></article>
-      <article class="week" style="--tone:var(--amber);--soft:var(--amber-soft)"><small>Week 02</small><h3>Add LangGraph + ChromaDB</h3><p>Convert the pipeline into graph nodes and store extracted findings in vector memory.</p><span class="tag">Architecture</span></article>
-      <article class="week" style="--tone:var(--blue);--soft:var(--blue-soft)"><small>Week 03</small><h3>Evaluation system + PDF export</h3><p>Build a metrics panel, unsupported-claim checks, PDF export, and benchmark screenshots.</p><span class="tag">Differentiator</span></article>
-      <article class="week" style="--tone:var(--violet);--soft:var(--violet-soft)"><small>Week 04</small><h3>Polish + job materials</h3><p>Record a demo, update README, add architecture diagrams, and publish a technical write-up.</p><span class="tag">Visibility</span></article>
-    </section>
-
-    <h2 class="block-title">Your actual advantages over Synapse AI</h2>
-    <section class="advantages" aria-label="Advantages">
-      <article class="advantage"><span>+</span><p><strong>You can explain every line.</strong> Your stack is smaller, so interview explanations are clearer and more credible.</p></article>
-      <article class="advantage"><span>+</span><p><strong>Async research is a real edge.</strong> Parallel sub-question search can make your project measurably faster.</p></article>
-      <article class="advantage"><span>+</span><p><strong>Evaluation metrics are underbuilt territory.</strong> A quality layer can make your project feel more research-grade.</p></article>
-      <article class="advantage"><span>+</span><p><strong>PDF export is practical.</strong> Recruiters and users understand a polished report artifact immediately.</p></article>
-    </section>
-
-    <section class="runner">
-      <div>
-        <h2>Ready to run the current agent?</h2>
-        <p>Use the working Groq + Tavily pipeline now, then build the v2 upgrades from this roadmap.</p>
+  <nav class="nav">
+    <div class="nav-inner">
+      <a href="#" class="brand">
+        <span class="mark" aria-hidden="true">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><rect x="4" y="4" width="16" height="16" rx="2" stroke="currentColor" stroke-width="2"/><rect x="9" y="9" width="6" height="6" rx="1" stroke="currentColor" stroke-width="2"/><path d="M15 2v2M15 20v2M9 2v2M9 20v2M2 9h2M2 15h2M20 9h2M20 15h2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        </span>
+        <span>Research<span>Agent</span></span>
+      </a>
+      <div class="nav-links">
+        <a href="#services">Services</a>
+        <a href="#how-it-works">How It Works</a>
+        <a href="#agent">Try Agent</a>
       </div>
-      <button id="toggle-form" class="btn">Start a research run -></button>
-      <form id="run-form" class="run-form">
-        <textarea id="topic" name="topic" placeholder="Example: AI engineer skills freshers need in 2026" required></textarea>
-        <button id="run-button" class="btn primary" type="submit">Run agent</button>
-      </form>
-      <div id="result" class="result" aria-live="polite"></div>
+      <a href="#agent" class="btn">Try Free -></a>
+    </div>
+  </nav>
+
+  <main>
+    <section class="hero">
+      <div class="wrap center">
+        <div class="badge">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M12 2l1.8 6.2L20 10l-6.2 1.8L12 18l-1.8-6.2L4 10l6.2-1.8L12 2Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
+          Groq + Tavily research workspace
+        </div>
+        <h1>Turn any topic into a<br><span class="gradient-text">cited research brief.</span></h1>
+        <p>A focused interface for your Python agent: plan the research, collect live sources, filter weak evidence, extract findings, and export a report without leaving the browser.</p>
+        <div class="hero-actions">
+          <a href="#agent" class="btn">Start for Free
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M5 12h14m-7-7 7 7-7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </a>
+          <a href="#how-it-works" class="btn secondary">See How It Works</a>
+        </div>
+        <div class="stats">
+          <div class="glass">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/><path d="M2 12h20M12 2a14.5 14.5 0 0 1 0 20M12 2a14.5 14.5 0 0 0 0 20" stroke="currentColor" stroke-width="2"/></svg>
+            <strong>Live Discovery</strong><span>Tavily web results</span>
+          </div>
+          <div class="glass">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M3 3v18h18M8 17v-4M13 17V7M18 17v-8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+            <strong>Evidence Pipeline</strong><span>Plan, score, summarize</span>
+          </div>
+          <div class="glass">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z" stroke="currentColor" stroke-width="2"/><path d="M14 2v6h6M8 13h8M8 17h5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+            <strong>Export Ready</strong><span>HTML, Markdown, JSON</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="services" class="soft">
+      <div class="wrap">
+        <div class="section-head">
+          <span class="kicker">Agent Capabilities</span>
+          <h2>The same representation, designed for your agent.</h2>
+          <p>The page explains the complete research loop clearly while keeping a different light visual style from the reference project.</p>
+        </div>
+        <div class="cards">
+          <article class="card" style="color:#d97706"><div class="icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M12 5a3 3 0 0 0-6 .1 4 4 0 0 0-1.7 6.2A4 4 0 0 0 12 18V5ZM12 5a3 3 0 0 1 6 .1 4 4 0 0 1 1.7 6.2A4 4 0 0 1 12 18V5Z" stroke="currentColor" stroke-width="2"/></svg></div><div class="card-title"><h3>Planning Agent</h3><span class="chip">Groq</span></div><p>Breaks a broad topic into focused sub-questions and a report outline.</p></article>
+          <article class="card" style="color:#0891b2"><div class="icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="8" stroke="currentColor" stroke-width="2"/><path d="m21 21-4.3-4.3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></div><div class="card-title"><h3>Research Agent</h3><span class="chip">Tavily</span></div><p>Searches the live web and retrieves source snippets for every sub-question.</p></article>
+          <article class="card" style="color:#7c3aed"><div class="icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M4 14h6M4 10h10M4 6h16M4 18h16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></div><div class="card-title"><h3>Source Scoring</h3><span class="chip">Filter</span></div><p>Scores sources for relevance and keeps stronger evidence for synthesis.</p></article>
+          <article class="card" style="color:#059669"><div class="icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="m12 3 9 5-9 5-9-5 9-5Z" stroke="currentColor" stroke-width="2"/><path d="m3 13 9 5 9-5" stroke="currentColor" stroke-width="2"/></svg></div><div class="card-title"><h3>Structured Memory</h3><span class="chip">JSON</span></div><p>Saves extracted claims, citations, quotes, and findings for later use.</p></article>
+          <article class="card" style="color:#e11d48"><div class="icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M6 3v12M18 9a6 6 0 0 1-6 6H6" stroke="currentColor" stroke-width="2"/><circle cx="18" cy="6" r="3" stroke="currentColor" stroke-width="2"/><circle cx="6" cy="18" r="3" stroke="currentColor" stroke-width="2"/></svg></div><div class="card-title"><h3>Gap Loops</h3><span class="chip">Agentic</span></div><p>Refines the query and searches again when coverage is too thin.</p></article>
+          <article class="card" style="color:#0f766e"><div class="icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M13 2 3 14h8l-1 8 11-13h-8l1-7Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg></div><div class="card-title"><h3>Report Delivery</h3><span class="chip">Files</span></div><p>Generates Markdown, HTML, and raw findings files in the output folder.</p></article>
+        </div>
+      </div>
+    </section>
+
+    <section id="how-it-works">
+      <div class="wrap">
+        <div class="section-head">
+          <span class="kicker" style="background:#fff3e8;color:#c2410c">Workflow</span>
+          <h2>From rough idea to final report</h2>
+          <p>The representation stays familiar: describe the goal, let the agent work through each stage, then open the finished outputs.</p>
+        </div>
+        <div class="timeline">
+          <div class="step" style="--step:#f97316"><div class="num">01</div><div class="card"><h3>Enter the research prompt</h3><p>Start with a topic, question, market, technology, or decision you want investigated.</p></div></div>
+          <div class="step" style="--step:#0f766e"><div class="num">02</div><div class="card"><h3>Break it into sub-questions</h3><p>Groq creates a structured plan and a report outline before sources are gathered.</p></div></div>
+          <div class="step" style="--step:#14b8a6"><div class="num">03</div><div class="card"><h3>Search and filter evidence</h3><p>Tavily retrieves sources; the agent scores, keeps, and summarizes the useful ones.</p></div></div>
+          <div class="step" style="--step:#eab308"><div class="num">04</div><div class="card"><h3>Fill gaps with another pass</h3><p>If the evidence is too thin, the agent refines the query and searches again.</p></div></div>
+          <div class="step" style="--step:#7c3aed"><div class="num">05</div><div class="card"><h3>Publish the report files</h3><p>The final output is saved as Markdown, HTML, and raw findings JSON.</p></div></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="agent" class="soft">
+      <div class="wrap">
+        <div class="section-head">
+          <span class="kicker">Live Agent</span>
+          <h2>Run your agent from the browser</h2>
+          <p>Use the same backend you already had, now with a clean light control panel.</p>
+        </div>
+        <div class="agent-panel">
+          <div class="mode-row">
+            <button class="mode active" type="button">Research Run</button>
+            <button class="mode" type="button">Cited Output</button>
+            <button class="mode" type="button">Source Trace</button>
+          </div>
+          <form id="run-form" class="agent-body">
+            <textarea id="topic" name="topic" placeholder="Example: Analyse AI engineer skills needed for freshers in 2026" required></textarea>
+            <div class="run-row">
+              <span class="hint">Runs locally with Groq LLaMA 3.3 70B + Tavily Search</span>
+              <button id="run-button" class="btn" type="submit">Run
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M5 12h14m-7-7 7 7-7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </button>
+            </div>
+          </form>
+          <div class="examples">
+            <h3>Try an example</h3>
+            <div class="example-grid">
+              <button class="example" type="button"><span>Research Only</span>Analyse AI engineer skills needed for freshers in 2026</button>
+              <button class="example" type="button"><span>Market Research</span>Future of nuclear energy in India</button>
+              <button class="example" type="button"><span>Technology</span>Best practices for RAG pipelines in production AI systems</button>
+              <button class="example" type="button"><span>Healthcare</span>Impact of AI on healthcare delivery and patient outcomes</button>
+            </div>
+          </div>
+          <div id="result" class="result" aria-live="polite"></div>
+        </div>
+      </div>
     </section>
   </main>
 
+  <footer>
+    <div class="wrap">
+      <div class="footer-grid">
+        <div>
+          <div class="brand"><span class="mark" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><rect x="4" y="4" width="16" height="16" rx="2" stroke="currentColor" stroke-width="2"/><rect x="9" y="9" width="6" height="6" rx="1" stroke="currentColor" stroke-width="2"/></svg></span><span>Research<span>Agent</span></span></div>
+          <p>Autonomous research workspace for turning topics into cited, exportable reports.</p>
+        </div>
+        <div><h4>Tech Stack</h4><ul><li>Groq LLaMA 3.3</li><li>Tavily Search</li><li>Python</li><li>Markdown + HTML</li></ul></div>
+        <div><h4>Links</h4><ul><li><a href="#agent">Try Agent</a></li><li><a href="#services">Services</a></li><li><a href="#how-it-works">How It Works</a></li></ul></div>
+      </div>
+      <div class="footbar"><span>Built with Groq + Tavily</span><span>ResearchAgent 2026</span></div>
+    </div>
+  </footer>
+
   <script>
-    const toggle = document.querySelector("#toggle-form");
     const form = document.querySelector("#run-form");
     const topic = document.querySelector("#topic");
     const button = document.querySelector("#run-button");
     const result = document.querySelector("#result");
 
-    toggle.addEventListener("click", () => {
-      form.classList.toggle("show");
-      if (form.classList.contains("show")) topic.focus();
+    document.querySelectorAll(".example").forEach((example) => {
+      example.addEventListener("click", () => {
+        topic.value = example.textContent.replace(/Research Only|Market Research|Technology|Healthcare/g, "").trim();
+        topic.focus();
+      });
     });
 
     const escapeHtml = (value) => value.replace(/[&<>]/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[ch]));
 
     function renderRunning() {
       result.className = "result show";
-      result.innerHTML = "<strong>Agent is running...</strong><p>This can take a minute or two while the agent searches, scores, summarizes, and writes the report.</p>";
+      result.innerHTML = "<strong>Agent is running...</strong><p class=\"hint\">This can take a minute or two while the agent searches, scores sources, summarizes findings, and writes the report.</p>";
     }
 
     function renderResult(data) {
@@ -663,7 +798,7 @@ HTML = r"""<!doctype html>
         renderResult({ ok: false, error: error.message });
       } finally {
         button.disabled = false;
-        button.textContent = "Run agent";
+        button.innerHTML = 'Run <svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M5 12h14m-7-7 7 7-7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
       }
     });
   </script>
