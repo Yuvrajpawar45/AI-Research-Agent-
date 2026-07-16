@@ -1,41 +1,54 @@
 """
-FastAPI backend — exposes the LangGraph research agent over HTTP.
+FastAPI backend — exposes the LangGraph research agent over HTTP,
+and serves the static frontend from the same process (one deploy, one URL).
 
 Endpoints:
-  GET  /api/health          → health check
-  POST /api/run             → blocking run, returns full result as JSON
-  POST /api/stream          → Server-Sent Events stream, one event per node step
+  GET  /                    -> frontend UI
+  GET  /api/health          -> health check
+  POST /api/run             -> blocking run, returns full result as JSON
+  POST /api/stream          -> Server-Sent Events stream, one event per node step
+  GET  /api/report/{name}   -> download a saved report file (md/html/json)
 
 SSE stream format (one JSON per line, prefixed with "data: "):
-  data: {"event":"node_start","node":"search","message":"Searching...","step":2}
-  data: {"event":"node_done","node":"scorer","message":"8 sources scored","step":3}
+  data: {"event":"node_done","node":"search","message":"...","step":2}
   data: {"event":"result","node":"deliver","message":"Done","data":{...}}
   data: {"event":"error","node":"planner","message":"API key missing"}
+  data: {"event":"done"}
 
 Run locally:
   uvicorn api.main:app --reload --port 8000
 
-Then open:  http://localhost:8000/api/docs
+Then open:  http://localhost:8000
+API docs:   http://localhost:8000/api/docs
 """
 
 import asyncio
 import json
+from pathlib import Path
 from typing import AsyncGenerator
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse, FileResponse
 from pydantic import BaseModel
 
-from graph.graph  import research_graph
-from graph.state  import ResearchState
+from graph.graph import research_graph
+from graph.state import ResearchState
+from agent.evaluator import ResearchEvaluator
+import config
+
+
+# ── Paths ───────────────────────────────────────────────────────────
+ROOT = Path(__file__).resolve().parent.parent
+FRONTEND_DIR = ROOT / "frontend"
+OUTPUT_DIR = (ROOT / config.OUTPUT_DIR).resolve()
 
 
 # ── App setup ─────────────────────────────────────────────────────
 app = FastAPI(
     title="AI Research Agent",
     description="Autonomous research agent powered by LangGraph + Groq + Tavily",
-    version="2.0.0",
+    version="2.1.0",
     docs_url="/api/docs",
     redoc_url="/api/redoc",
 )
@@ -48,6 +61,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+_evaluator = ResearchEvaluator()
+
 
 # ── Request / Response models ─────────────────────────────────────
 class RunRequest(BaseModel):
@@ -55,12 +70,13 @@ class RunRequest(BaseModel):
     max_sub_questions: int = 6     # overrides config if provided
 
 class RunResponse(BaseModel):
-    title:       str
-    report_path: str
-    report_md:   str
+    title:          str
+    report_path:    str
+    report_md:      str
     findings_count: int
-    steps_taken: int
-    logs:        list[dict]
+    steps_taken:    int
+    logs:           list[dict]
+    quality_report: dict
 
 
 # ── Helpers ───────────────────────────────────────────────────────
@@ -97,28 +113,36 @@ def _node_display_name(node: str) -> str:
     return names.get(node, node)
 
 
-# ── Routes ────────────────────────────────────────────────────────
+def _quality_report(final_state: ResearchState) -> dict:
+    """Compute the non-LLM quality/evaluation metrics for a finished run."""
+    return _evaluator.evaluate(final_state.get("all_findings", {}))
 
+
+# ── Frontend ──────────────────────────────────────────────────────
+@app.get("/", include_in_schema=False)
+async def serve_frontend():
+    return FileResponse(FRONTEND_DIR / "index.html")
+
+
+# ── Routes ────────────────────────────────────────────────────────
 @app.get("/api/health")
 async def health():
-    return {"status": "ok", "service": "AI Research Agent", "version": "2.0.0"}
+    return {"status": "ok", "service": "AI Research Agent", "version": "2.1.0"}
 
 
 @app.post("/api/run", response_model=RunResponse)
 async def run_agent(req: RunRequest):
     """
     Blocking endpoint — runs the full graph and returns when done.
-    For quick testing; use /api/stream for real-time progress.
+    For quick testing; use /api/stream for real-time progress in the UI.
     """
     initial_state = _build_initial_state(req.topic, req.max_sub_questions)
 
-    # LangGraph .invoke() runs the graph to completion
     final_state: ResearchState = await asyncio.to_thread(
         research_graph.invoke, initial_state
     )
 
     if final_state.get("error"):
-        from fastapi import HTTPException
         raise HTTPException(status_code=500, detail=final_state["error"])
 
     findings_count = sum(
@@ -132,6 +156,7 @@ async def run_agent(req: RunRequest):
         findings_count = findings_count,
         steps_taken    = len(final_state.get("status_log", [])),
         logs           = final_state.get("status_log", []),
+        quality_report = _quality_report(final_state),
     )
 
 
@@ -145,19 +170,19 @@ async def stream_agent(req: RunRequest):
 
     async def event_generator() -> AsyncGenerator[str, None]:
         step = 0
+        last_state: dict = dict(initial_state)
 
-        # LangGraph .stream(..., stream_mode="updates") yields {node_name: partial_state}.
         for update in research_graph.stream(
             initial_state,
-            stream_mode="updates",   # yield after each node update
+            stream_mode="updates",
         ):
             if not update:
                 continue
 
             node_name, partial_state = next(iter(update.items()))
             step += 1
+            last_state.update(partial_state)
 
-            # ── Error in state → emit error event and stop ──────
             if partial_state.get("error"):
                 payload = json.dumps({
                     "event":   "error",
@@ -168,11 +193,9 @@ async def stream_agent(req: RunRequest):
                 yield f"data: {payload}\n\n"
                 return
 
-            # ── Build message from latest log entry ──────────────
-            logs    = partial_state.get("status_log", [])
+            logs = partial_state.get("status_log", [])
             message = logs[-1]["msg"] if logs else _node_display_name(node_name)
 
-            # ── Emit progress event ──────────────────────────────
             payload = json.dumps({
                 "event":   "node_done",
                 "node":    node_name,
@@ -182,15 +205,21 @@ async def stream_agent(req: RunRequest):
             })
             yield f"data: {payload}\n\n"
 
-            # ── On final deliver node, emit full result ──────────
             if node_name == "deliver" and partial_state.get("report_path"):
+                findings_count = sum(
+                    len(v) for v in last_state.get("all_findings", {}).values()
+                )
                 result_payload = json.dumps({
-                    "event":      "result",
-                    "node":       "deliver",
-                    "message":    "Research complete",
-                    "step":       step,
+                    "event":   "result",
+                    "node":    "deliver",
+                    "message": "Research complete",
+                    "step":    step,
                     "data": {
-                        "report_path": partial_state.get("report_path", ""),
+                        "title":          last_state.get("plan", {}).get("title", req.topic),
+                        "report_path":    partial_state.get("report_path", ""),
+                        "report_md":      last_state.get("report_md", ""),
+                        "findings_count": findings_count,
+                        "quality_report": _quality_report(last_state),
                     },
                 })
                 yield f"data: {result_payload}\n\n"
@@ -202,10 +231,20 @@ async def stream_agent(req: RunRequest):
         media_type="text/event-stream",
         headers={
             "Cache-Control":               "no-cache",
-            "X-Accel-Buffering":           "no",    # disable nginx buffering
+            "X-Accel-Buffering":           "no",
             "Access-Control-Allow-Origin": "*",
         },
     )
+
+
+@app.get("/api/report/{filename}")
+async def get_report(filename: str):
+    """Serve a saved report file (md/html/json) for download."""
+    name = Path(filename).name  # strip any path components — no traversal
+    path = (OUTPUT_DIR / name).resolve()
+    if OUTPUT_DIR not in path.parents or not path.exists() or not path.is_file():
+        raise HTTPException(status_code=404, detail="Report not found")
+    return FileResponse(path)
 
 
 @app.get("/api/logs/{run_id}")

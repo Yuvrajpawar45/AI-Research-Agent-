@@ -1,225 +1,205 @@
-# 🔬 AI Research Agent v2
+# 🔬 AI Research Agent
 
-[![Live Demo](https://img.shields.io/badge/Live%20Demo-Railway-blueviolet?style=for-the-badge)](https://your-app.up.railway.app)
-[![API Docs](https://img.shields.io/badge/API%20Docs-FastAPI-009688?style=for-the-badge)](https://your-app.up.railway.app/docs)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow?style=for-the-badge)](LICENSE)
+**Autonomous research agent built on a 7-node LangGraph state machine** — decomposes a topic into sub-questions, searches the web, scores and filters sources, extracts cited findings, self-corrects on weak evidence, and synthesizes a Markdown report with a built-in, non-LLM confidence/risk evaluation.
 
-A fully autonomous research agent that decomposes topics, searches the web in
-parallel, scores sources, extracts findings, and synthesises a cited report —
-with **persistent vector memory**, **quality evaluation metrics**, and **PDF export**.
-
-> **Free stack:** Groq (LLaMA 3.3-70B) + Tavily Search + ChromaDB + sentence-transformers
+[![Live Demo](https://img.shields.io/badge/Live_Demo-view_app-0f766e?style=flat-square)](REPLACE_WITH_YOUR_RAILWAY_URL)
+[![API Docs](https://img.shields.io/badge/API_Docs-/api/docs-2563eb?style=flat-square)](REPLACE_WITH_YOUR_RAILWAY_URL/api/docs)
+[![Python](https://img.shields.io/badge/Python-3.11-blue?style=flat-square)](https://python.org)
+[![LangGraph](https://img.shields.io/badge/LangGraph-0.2-E8823A?style=flat-square)](https://github.com/langchain-ai/langgraph)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.111-009688?style=flat-square)](https://fastapi.tiangolo.com)
 
 ---
 
-## What's new in v2
+## Why this exists
 
-| Upgrade | What it does | Why it matters |
-|---|---|---|
-| **1. ChromaDB memory** | Embeds every finding; semantic search across past runs | Demonstrates RAG, not just API chaining |
-| **2. LangGraph** | StateGraph with typed state + conditional loop edge | "Agent system" vs "automation script" on resume |
-| **3. Async parallel** | `asyncio.gather()` searches all sub-questions at once | 3–6× faster; benchmark-ready talking point |
-| **4. Evaluation** | Credibility, citation density, hallucination risk, confidence score | Only research agent with built-in quality metrics |
-| **5. Deployment** | Railway (backend) + Vercel (frontend) | Live URL = verifiable project |
-| **6. PDF export** | `weasyprint` renders cited PDFs | Ships before Synapse AI ships it |
+Most fresher "research agent" projects are a single LLM call wearing a search-tool costume. This one is built as an actual **state machine with a self-correction loop**: if a sub-question doesn't turn up enough credible evidence, the agent rewrites its own query and re-searches — up to a configurable limit — before giving up and moving on. Every run also produces a transparent, deterministic **quality report** (confidence score, source diversity, citation density, risk flags) instead of just asserting the output is trustworthy.
 
 ---
 
 ## Architecture
 
 ```
-INPUT: topic
-   │
-   ▼
-┌─────────────────────────────────────────────────────────┐
-│              LangGraph StateGraph                        │
-│                                                         │
-│  Planner ──► Searcher ──► Scorer ──► Summarizer         │
-│                ▲               │                        │
-│                │    ┌──────────▼──────────┐             │
-│                │    │    GapChecker        │             │
-│                │    │  gaps found &        │             │
-│                └────┤  under loop limit?   │             │
-│           loop back │                      │             │
-│                     └──────────┬───────────┘             │
-│                                │ no gaps / limit hit     │
-│                                ▼                        │
-│                          Synthesizer                    │
-│                                │                        │
-│                            Output                       │
-└─────────────────────────────────────────────────────────┘
-   │
-   ├── Markdown report  (output/)
-   ├── HTML report       (output/)
-   ├── PDF report        (output/)  ← new
-   ├── Findings JSON     (output/)
-   └── Evaluation JSON   (output/)  ← new
-
-ChromaDB (persistent, ./chroma_db/)
-  ← every finding embedded here after summarization
-  ← queryable via /memory/search for RAG across past runs
+User Query
+    │
+    ▼
+┌───────────────────────────────────────────────────────────┐
+│                    FastAPI Backend                        │
+│   GET  /api/health     POST /api/run     POST /api/stream │
+└──────────────────────────┬──────────────────────────────--┘
+                            │
+                            ▼
+┌────────────────────────────────────────────────────────---┐
+│              LangGraph StateGraph (graph/graph.py)         │
+│                                                             │
+│   planner ──► search ──► scorer ──► summarizer_q           │
+│                  ▲                        │                │
+│                  │                        ▼                │
+│                  └──────────────── gap_checker              │
+│                     (loop: refine query, re-search   │      │
+│                      OR advance to next sub-question) │      │
+│                                        │               │      │
+│                          (all sub-questions done)      │      │
+│                                        ▼                       │
+│                              synthesizer ──► deliver            │
+└──────────────────────────────────────────────────────────---┘
+                            │
+                    ┌───────┴────────┐
+                    ▼                ▼
+              Tavily Search    Groq LLaMA 3.3-70B
 ```
 
----
+### State flow
 
-## Quick start
-
-### 1. Clone & install
-
-```bash
-git clone https://github.com/Yuvrajpawar45/AI-Research-Agent-
-cd AI-Research-Agent-
-pip install -r requirements.txt
-```
-
-> **weasyprint system deps (Ubuntu/Debian):**
-> ```bash
-> sudo apt-get install -y libpango-1.0-0 libpangoft2-1.0-0 libharfbuzz0b
-> ```
-
-### 2. Configure keys
-
-```bash
-cp .env.example .env
-# Paste your GROQ_API_KEY and TAVILY_API_KEY
-```
-
-### 3. Run
-
-```bash
-# CLI (with optional PDF export)
-python main.py "The future of nuclear energy" --pdf
-
-# API server
-uvicorn api.main:app --reload
-# → http://localhost:8000/docs
-```
-
----
-
-## API endpoints
-
-| Method | Path | Description |
-|--------|------|-------------|
-| `POST` | `/research` | Run full research pipeline |
-| `POST` | `/memory/search` | Semantic search past findings (RAG) |
-| `GET`  | `/memory/topics` | List all researched topics |
-| `GET`  | `/memory/count` | Total stored findings in ChromaDB |
-| `POST` | `/export/pdf` | Download report as PDF |
-| `GET`  | `/health` | Health check + feature flags |
-
-### Example: research
-```bash
-curl -X POST https://your-app.up.railway.app/research \
-  -H "Content-Type: application/json" \
-  -d '{"topic": "Impact of AI on drug discovery"}'
-```
-
-### Example: semantic memory search
-```bash
-curl -X POST https://your-app.up.railway.app/memory/search \
-  -H "Content-Type: application/json" \
-  -d '{"query": "machine learning cancer detection", "n": 5}'
-```
-
----
-
-## Evaluation metrics
-
-Every report includes an automated quality evaluation:
-
-| Metric | Description |
-|--------|-------------|
-| `confidence_score` | Composite 0–1 score (credibility + citations + risk) |
-| `source_credibility_score` | Average Tavily source quality score |
-| `citation_density` | Citations per 500 words (higher = better supported) |
-| `hallucination_risk` | `low` / `medium` / `high` — claims without cited sources |
-| `per_section_confidence` | Per-section breakdown for the UI |
-
----
-
-## Performance benchmark
-
-Parallel vs sequential search (6 sub-questions, ~1s per search):
-
-| Mode | Time |
-|------|------|
-| Sequential (v1) | ~6.0s |
-| Parallel (v2) | ~1.2s |
-| **Speedup** | **~5×** |
-
----
-
-## Deployment
-
-### Backend → Railway (free)
-
-1. Push to GitHub
-2. New project at [railway.app](https://railway.app) → Deploy from GitHub
-3. Set env vars: `GROQ_API_KEY`, `TAVILY_API_KEY`
-4. Railway auto-detects `railway.json`
-
-### Frontend → Vercel (free)
-
-1. Update `NEXT_PUBLIC_API_URL` in `vercel.json` with your Railway URL
-2. Import repo at [vercel.com](https://vercel.com)
-
----
-
-## Configuration (`config.py`)
-
-| Setting | Default | Description |
-|---|---|---|
-| `MAX_SUB_QUESTIONS` | 6 | Sub-questions to research |
-| `SOURCES_PER_QUERY` | 5 | Web results per search |
-| `MIN_CREDIBLE_SOURCES` | 2 | Min findings before loop exits |
-| `MAX_SEARCH_LOOPS` | 2 | Max re-search iterations |
-| `CONFIDENCE_THRESHOLD` | 0.6 | Min source score to keep |
-| `CHROMA_PATH` | `./chroma_db` | ChromaDB persistence path |
-
----
-
-## Project structure
-
-```
-ai-research-agent/
-├── main.py                    # CLI entry point (--pdf flag)
-├── config.py                  # Settings
-├── requirements.txt           # Updated with v2 deps
-├── railway.json               # Railway deployment config
-├── vercel.json                # Vercel frontend config
-├── Procfile
-├── agent/
-│   ├── graph.py               # ★ LangGraph StateGraph (NEW)
-│   ├── memory.py              # ★ ChromaDB vector memory (NEW)
-│   ├── evaluation.py          # ★ Quality metrics engine (NEW)
-│   ├── export.py              # ★ PDF export via weasyprint (NEW)
-│   ├── planner.py             # Step 1: decompose topic
-│   ├── scorer.py              # Step 3: score & filter
-│   ├── summarizer.py          # Step 4: extract findings
-│   ├── gap_checker.py         # Step 5: agentic loop logic
-│   ├── synthesizer.py         # Step 6: write report
-│   ├── output_writer.py       # Step 7: save files
-│   └── llm_client.py          # Groq wrapper
-├── api/
-│   └── main.py                # ★ FastAPI with all new endpoints (NEW)
-├── tools/
-│   ├── web_search.py          # ★ Updated with search_async() (UPDATED)
-│   └── pdf_parser.py          # PDF input parsing
-└── output/                    # Reports saved here
+```python
+# graph/state.py
+class ResearchState(TypedDict):
+    topic: str
+    plan: dict                                     # after planner
+    current_q_idx: int                             # which sub-question is active
+    current_query: str                              # refined on gap-check loop
+    loop_count: int                                  # re-search attempts, this question
+    raw_sources: list                                # after search
+    scored_sources: list                             # after scorer
+    q_findings: list                                 # findings for current question
+    all_findings: Annotated[dict, _merge_findings]   # accumulated across all questions
+    report_md: str
+    report_path: str
+    status_log: Annotated[list, operator.add]        # streamed to the UI via SSE
+    error: str
 ```
 
 ---
 
 ## Tech stack
 
-| Component | Technology | Cost |
+| Layer | Technology | Notes |
 |---|---|---|
-| LLM | Groq LLaMA 3.3-70B | Free |
-| Search | Tavily API | Free (1000/mo) |
-| Orchestration | LangGraph StateGraph | Open source |
-| Vector DB | ChromaDB (local) | Free |
-| Embeddings | sentence-transformers | Free |
-| PDF export | weasyprint | Open source |
-| Backend | FastAPI + Railway | Free tier |
-| Frontend | Vercel | Free tier |
+| **Orchestration** | LangGraph 0.2 `StateGraph` | 7 nodes, 2 conditional edges — one is the self-correction loop |
+| **LLM** | Groq `llama-3.3-70b-versatile` | OpenAI-compatible API, ~800 tok/s, free tier |
+| **Web search** | Tavily Search API | direct HTTP, advanced search depth |
+| **Backend** | FastAPI + uvicorn | REST + Server-Sent Events streaming |
+| **Evaluation** | Custom non-LLM evaluator (`agent/evaluator.py`) | confidence score, citation density, source/domain diversity, risk flags |
+| **Frontend** | Vanilla HTML/CSS/JS | consumes the SSE stream directly via `fetch` + `ReadableStream`, no build step |
+| **Deployment** | Railway (or Render) | single process serves both API and frontend |
+
+---
+
+## Features
+
+- **🧠 Query decomposition** — Groq LLM breaks the topic into up to 6 focused sub-questions with a matching report outline
+- **🔍 Web search per sub-question** — Tavily, advanced search depth
+- **📊 Composite source scoring** — blends Tavily's relevance score, a domain-credibility heuristic (`.edu`/`.gov`/known journals score higher), and a recency decay function
+- **🔁 Agentic self-correction** — if a sub-question yields fewer than `MIN_CREDIBLE_SOURCES`, the agent asks the LLM to reformulate the query (different angle/terminology) and re-searches, up to `MAX_SEARCH_LOOPS` times
+- **📝 Structured, cited extraction** — each accepted source is parsed into key claims, statistics, and a supporting quote before synthesis, not just dumped into the prompt
+- **✅ Built-in quality evaluation** — every run gets a deterministic (non-LLM) confidence score plus explicit risk flags, e.g. *"low domain diversity"* or *"citation density below recommended band"* — a transparency layer most portfolio RAG/agent projects skip entirely
+- **🌊 Live streaming UI** — SSE endpoint streams one event per graph node, so the frontend shows real pipeline progress, not a spinner
+- **📁 Multi-format export** — every run saves Markdown, HTML, findings JSON, and quality JSON
+
+---
+
+## Project structure
+
+```
+AI-Research-Agent-/
+├── agent/
+│   ├── planner.py       # Node 1: topic → sub-questions + report outline
+│   ├── scorer.py        # Node 3: composite relevance/credibility/recency scoring
+│   ├── summarizer.py    # Node 4: structured claim/stat/quote extraction per source
+│   ├── gap_checker.py   # Node 5: coverage check + query refinement
+│   ├── synthesizer.py   # Node 6: final cited Markdown report
+│   ├── output_writer.py # Node 7: saves .md / .html / findings.json / quality.json
+│   ├── evaluator.py     # Deterministic quality/risk scoring (no LLM call)
+│   └── llm_client.py    # Groq client wrapper
+├── graph/
+│   ├── state.py         # ResearchState TypedDict + custom reducers
+│   ├── nodes.py         # node functions + conditional-edge routing logic
+│   └── graph.py         # compiles the StateGraph
+├── api/
+│   └── main.py           # FastAPI app: /api/health, /api/run, /api/stream, serves frontend
+├── frontend/
+│   └── index.html         # SSE-driven pipeline UI, no build step
+├── tools/
+│   ├── web_search.py      # Tavily HTTP client
+│   └── pdf_parser.py       # optional local PDF ingestion (PyMuPDF)
+├── main.py                # CLI entry point (classic orchestrator, parallel sub-questions)
+├── Procfile                # web: uvicorn api.main:app --host 0.0.0.0 --port $PORT
+└── requirements.txt
+```
+
+> Note: `main.py` / `agent/orchestrator.py` is an earlier CLI-only implementation that runs sub-questions **in parallel** via `asyncio.Semaphore`. The deployed LangGraph pipeline (`graph/`) processes sub-questions **sequentially** through the state machine — that trade-off is what makes step-by-step SSE progress possible in the UI.
+
+---
+
+## Quick start (local)
+
+```bash
+git clone https://github.com/Yuvrajpawar45/AI-Research-Agent-.git
+cd AI-Research-Agent-
+python -m venv venv
+source venv/bin/activate        # Windows: venv\Scripts\activate
+pip install -r requirements.txt
+cp .env.example .env             # add GROQ_API_KEY and TAVILY_API_KEY
+uvicorn api.main:app --reload --port 8000
+```
+
+Open `http://localhost:8000` — the FastAPI app serves the frontend directly.
+
+---
+
+## API reference
+
+### `POST /api/stream` (used by the UI)
+Server-Sent Events. One `node_done` event per graph node, a final `result` event with the report + quality metrics, then `done`.
+
+### `POST /api/run`
+Blocking — waits for the full run and returns everything as one JSON object (`report_md`, `quality_report`, `logs`, etc).
+
+### `GET /api/health`
+```json
+{ "status": "ok", "service": "AI Research Agent", "version": "2.1.0" }
+```
+
+### `GET /api/report/{filename}`
+Downloads a saved report file (`.md`, `.html`, `_findings.json`, `_quality.json`) from the most recent runs.
+
+Full interactive docs at `/api/docs` (Swagger) once running.
+
+---
+
+## Deployment
+
+See [`DEPLOY_TODAY.md`](DEPLOY_TODAY.md) for the exact click-by-click Railway steps. Short version:
+
+1. Push this repo to GitHub (main branch)
+2. Railway → New Project → Deploy from GitHub repo
+3. Add env vars: `GROQ_API_KEY`, `TAVILY_API_KEY`
+4. Railway reads the existing `Procfile` and deploys automatically
+5. Replace the badge URLs at the top of this README with your live Railway URL
+
+---
+
+## Roadmap
+
+- [x] LangGraph StateGraph with 7 nodes + self-correction loop
+- [x] FastAPI backend with SSE streaming
+- [x] Deterministic quality/risk evaluator
+- [x] Frontend wired to live SSE stream
+- [ ] Deploy to Railway/Render (do this today)
+- [ ] Similarity-threshold abstention: refuse to answer a sub-question if best-scoring source is still below a floor, rather than always producing a claim
+- [ ] Vector memory (ChromaDB/FAISS) across runs for follow-up questions
+- [ ] ArXiv/Semantic Scholar source alongside Tavily for academic queries
+- [ ] Tests for scorer, evaluator, and graph routing logic
+
+---
+
+## Resume positioning
+
+> Built an autonomous research agent on a 7-node LangGraph state machine with self-correcting search (query refinement on weak evidence), composite source scoring, and a deterministic post-hoc quality evaluator (confidence score, citation density, risk flags) — deployed with a FastAPI backend streaming live pipeline progress over SSE.
+
+Only use this phrasing once the app is actually live — see `DEPLOY_TODAY.md`.
+
+---
+
+## License
+
+MIT
