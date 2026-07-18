@@ -9,7 +9,7 @@
 
 **An autonomous research agent that decomposes a topic into sub-questions, searches the web for each one, drops low-credibility sources, self-corrects when evidence is thin, and writes a cited report — plus a deterministic, non-LLM score of how trustworthy that report actually is.**
 
-🔗 **[Live Demo](https://YOUR-VERCEL-URL.vercel.app)** · **Backend API:** `https://YOUR-RAILWAY-URL.up.railway.app`
+🔗 **[Live Demo](https://ai-research-agent-gamma-steel.vercel.app/)** · **Backend API:** [`ai-research-agent-production-4fa6.up.railway.app`](https://ai-research-agent-production-4fa6.up.railway.app)
 
 ---
 
@@ -119,10 +119,10 @@ The backend and frontend are deployed independently, communicating over CORS-sco
 
 | Component | Platform | What it serves |
 |---|---|---|
-| **Backend** | [Railway](https://railway.app) | FastAPI app — `/api/stream`, `/api/run`, `/api/report/{name}`, `/api/health` |
-| **Frontend** | [Vercel](https://vercel.com) | Static `frontend/index.html` — connects to the backend via `fetch` + SSE |
+| **Backend** | [Railway](https://railway.app) — [`ai-research-agent-production-4fa6.up.railway.app`](https://ai-research-agent-production-4fa6.up.railway.app) | FastAPI app — `/api/stream`, `/api/run`, `/api/report/{name}`, `/api/health` |
+| **Frontend** | [Vercel](https://vercel.com) — [`ai-research-agent-gamma-steel.vercel.app`](https://ai-research-agent-gamma-steel.vercel.app/) | Static `frontend/index.html` — connects to the backend via `fetch` + SSE |
 
-The frontend's `BACKEND_URL` constant points at the Railway backend, and the backend's `CORSMiddleware` allows only the deployed Vercel origin. This split lets each side scale, redeploy, and fail independently — a common real-world pattern for decoupling a UI from its API.
+The frontend's `BACKEND_URL` constant points at the Railway backend above, and the backend's `CORSMiddleware` allows the deployed Vercel origin. This split lets each side scale, redeploy, and fail independently — a common real-world pattern for decoupling a UI from its API.
 
 ---
 
