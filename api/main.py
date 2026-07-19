@@ -172,57 +172,73 @@ async def stream_agent(req: RunRequest):
         step = 0
         last_state: dict = dict(initial_state)
 
-        for update in research_graph.stream(
-            initial_state,
-            stream_mode="updates",
-        ):
-            if not update:
-                continue
+        try:
+            for update in research_graph.stream(
+                initial_state,
+                stream_mode="updates",
+            ):
+                if not update:
+                    continue
 
-            node_name, partial_state = next(iter(update.items()))
-            step += 1
-            last_state.update(partial_state)
+                node_name, partial_state = next(iter(update.items()))
+                step += 1
+                last_state.update(partial_state)
 
-            if partial_state.get("error"):
+                if partial_state.get("error"):
+                    payload = json.dumps({
+                        "event":   "error",
+                        "node":    node_name,
+                        "message": partial_state["error"],
+                        "step":    step,
+                    })
+                    yield f"data: {payload}\n\n"
+                    return
+
+                logs = partial_state.get("status_log", [])
+                message = logs[-1]["msg"] if logs else _node_display_name(node_name)
+
                 payload = json.dumps({
-                    "event":   "error",
+                    "event":   "node_done",
                     "node":    node_name,
-                    "message": partial_state["error"],
+                    "display": _node_display_name(node_name),
+                    "message": message,
                     "step":    step,
                 })
                 yield f"data: {payload}\n\n"
-                return
 
-            logs = partial_state.get("status_log", [])
-            message = logs[-1]["msg"] if logs else _node_display_name(node_name)
-
+                if node_name == "deliver" and partial_state.get("report_path"):
+                    findings_count = sum(
+                        len(v) for v in last_state.get("all_findings", {}).values()
+                    )
+                    result_payload = json.dumps({
+                        "event":   "result",
+                        "node":    "deliver",
+                        "message": "Research complete",
+                        "step":    step,
+                        "data": {
+                            "title":          last_state.get("plan", {}).get("title", req.topic),
+                            "report_path":    partial_state.get("report_path", ""),
+                            "report_md":      last_state.get("report_md", ""),
+                            "findings_count": findings_count,
+                            "quality_report": _quality_report(last_state),
+                        },
+                    })
+                    yield f"data: {result_payload}\n\n"
+        except Exception as exc:
+            # Catches anything a node didn't handle itself — e.g. both Groq
+            # models being rate-limited during synthesis. Without this, the
+            # exception would kill the SSE stream silently: the frontend log
+            # just stops with no error shown, which is exactly the symptom
+            # of "run stops right after gap_checker with no synthesize/deliver".
+            step += 1
             payload = json.dumps({
-                "event":   "node_done",
-                "node":    node_name,
-                "display": _node_display_name(node_name),
-                "message": message,
+                "event":   "error",
+                "node":    "pipeline",
+                "message": f"Unexpected error: {exc}",
                 "step":    step,
             })
             yield f"data: {payload}\n\n"
-
-            if node_name == "deliver" and partial_state.get("report_path"):
-                findings_count = sum(
-                    len(v) for v in last_state.get("all_findings", {}).values()
-                )
-                result_payload = json.dumps({
-                    "event":   "result",
-                    "node":    "deliver",
-                    "message": "Research complete",
-                    "step":    step,
-                    "data": {
-                        "title":          last_state.get("plan", {}).get("title", req.topic),
-                        "report_path":    partial_state.get("report_path", ""),
-                        "report_md":      last_state.get("report_md", ""),
-                        "findings_count": findings_count,
-                        "quality_report": _quality_report(last_state),
-                    },
-                })
-                yield f"data: {result_payload}\n\n"
+            return
 
         yield "data: {\"event\": \"done\"}\n\n"
 
