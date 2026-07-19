@@ -133,7 +133,7 @@
       </div>
       <span>Research<span>Agent</span></span>
     </div>
-
+ 
     <p class="nav-title">LangGraph Pipeline</p>
     <div class="steps" id="steps">
       <div class="step" data-step="1"><div class="step-number">01</div><div><strong>Plan</strong><small>Split topic into sub-questions</small></div></div>
@@ -142,7 +142,7 @@
       <div class="step" data-step="4"><div class="step-number">04</div><div><strong>Summarize</strong><small>Extract cited findings</small></div></div>
       <div class="step" data-step="5"><div class="step-number">05</div><div><strong>Synthesize</strong><small>Write & save the report</small></div></div>
     </div>
-
+ 
     <div class="stack">
       <p>Tech stack</p>
       <div class="stack-tags">
@@ -155,7 +155,7 @@
       </div>
     </div>
   </aside>
-
+ 
   <main>
     <div class="topbar">
       <div>
@@ -164,7 +164,7 @@
       </div>
       <div class="status" id="status">Ready</div>
     </div>
-
+ 
     <section class="panel">
       <div class="panel-head">
         <h2>Start a research run</h2>
@@ -188,7 +188,7 @@
         <button class="example" type="button" data-topic="Climate adaptation strategies for coastal cities"><strong>Climate</strong>Climate adaptation strategies for coastal cities</button>
       </div>
     </section>
-
+ 
     <section class="panel log-panel" id="log-panel">
       <div class="panel-head">
         <h2>Live pipeline log</h2>
@@ -196,12 +196,18 @@
       </div>
       <div id="log-lines"></div>
     </section>
-
+ 
     <section class="panel result" id="result"></section>
   </main>
 </div>
-
+ 
 <script>
+// Backend base URL. When this page is served BY the FastAPI backend itself
+// (e.g. on Railway), relative "/api/..." calls just work. When it's served
+// from a separate static host (e.g. Vercel), we need the absolute backend URL.
+const RAILWAY_BACKEND = "https://ai-research-agent-production-4fa6.up.railway.app";
+const API_BASE = window.location.origin.includes("railway.app") ? "" : RAILWAY_BACKEND;
+ 
 const form = document.querySelector("#run-form");
 const topicEl = document.querySelector("#topic");
 const button = document.querySelector("#run-button");
@@ -211,14 +217,14 @@ const logLines = document.querySelector("#log-lines");
 const logCount = document.querySelector("#log-count");
 const result = document.querySelector("#result");
 const stepsEls = [...document.querySelectorAll(".step")];
-
+ 
 document.querySelectorAll(".example").forEach((ex) => {
   ex.addEventListener("click", () => {
     topicEl.value = ex.dataset.topic;
     topicEl.focus();
   });
 });
-
+ 
 // Map backend node names to the 5 displayed pipeline stages.
 const NODE_TO_STEP = {
   planner: 1,
@@ -229,7 +235,7 @@ const NODE_TO_STEP = {
   synthesizer: 5,
   deliver: 5,
 };
-
+ 
 function setStep(stepNum) {
   stepsEls.forEach((el) => {
     const n = Number(el.dataset.step);
@@ -237,11 +243,11 @@ function setStep(stepNum) {
     el.classList.toggle("done", n < stepNum);
   });
 }
-
+ 
 function resetSteps() {
   stepsEls.forEach((el) => el.classList.remove("active", "done"));
 }
-
+ 
 function addLogLine(text) {
   const ts = new Date().toLocaleTimeString();
   const div = document.createElement("div");
@@ -250,61 +256,61 @@ function addLogLine(text) {
   logLines.prepend(div);
   logCount.textContent = `${logLines.children.length} events`;
 }
-
+ 
 function escapeHtml(value) {
   return String(value).replace(/[&<>]/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[ch]));
 }
-
+ 
 function renderError(message) {
   result.className = "result show";
   result.innerHTML = `
     <div class="panel-head"><h2>Run failed</h2><span>Error</span></div>
     <div class="error-box">${escapeHtml(message)}</div>`;
 }
-
+ 
 function renderResult(data) {
   const q = data.quality_report || {};
   const riskHtml = (q.risk_flags && q.risk_flags.length)
     ? q.risk_flags.map(f => `<div class="risk-flag">⚠ ${escapeHtml(f)}</div>`).join("")
     : `<div class="no-risk">No quality risk flags — evidence base looks solid.</div>`;
-
+ 
   const reportName = (data.report_path || "").split(/[\\/]/).pop();
   const base = reportName ? reportName.replace(/\.md$/, "") : "";
   const links = [];
-  if (reportName) links.push(`<a href="/api/report/${encodeURIComponent(reportName)}" target="_blank">Markdown</a>`);
-  if (base) links.push(`<a href="/api/report/${encodeURIComponent(base + ".html")}" target="_blank">HTML</a>`);
-  if (base) links.push(`<a href="/api/report/${encodeURIComponent(base + "_findings.json")}" target="_blank">Findings JSON</a>`);
-  if (base) links.push(`<a href="/api/report/${encodeURIComponent(base + "_quality.json")}" target="_blank">Quality JSON</a>`);
-
+  if (reportName) links.push(`<a href="${API_BASE}/api/report/${encodeURIComponent(reportName)}" target="_blank">Markdown</a>`);
+  if (base) links.push(`<a href="${API_BASE}/api/report/${encodeURIComponent(base + ".html")}" target="_blank">HTML</a>`);
+  if (base) links.push(`<a href="${API_BASE}/api/report/${encodeURIComponent(base + "_findings.json")}" target="_blank">Findings JSON</a>`);
+  if (base) links.push(`<a href="${API_BASE}/api/report/${encodeURIComponent(base + "_quality.json")}" target="_blank">Quality JSON</a>`);
+ 
   const reportHtml = window.marked ? marked.parse(data.report_md || "") : `<pre>${escapeHtml(data.report_md || "")}</pre>`;
-
+ 
   result.className = "result show";
   result.innerHTML = `
     <div class="panel-head">
       <h2>${escapeHtml(data.title || "Report ready")}</h2>
       <span>${data.findings_count ?? 0} findings used</span>
     </div>
-
+ 
     <div class="metrics">
       <div class="metric-card"><div class="num">${q.confidence_score ?? "—"}</div><div class="lbl">Confidence score</div></div>
       <div class="metric-card"><div class="num">${q.unique_sources ?? "—"}</div><div class="lbl">Unique sources</div></div>
       <div class="metric-card"><div class="num">${q.unique_domains ?? "—"}</div><div class="lbl">Unique domains</div></div>
       <div class="metric-card"><div class="num">${q.citation_density ?? "—"}</div><div class="lbl">Citation density</div></div>
     </div>
-
+ 
     <div class="risk-flags">${riskHtml}</div>
-
+ 
     <div class="links">${links.join("")}</div>
-
+ 
     <div class="report-body">${reportHtml}</div>
   `;
 }
-
+ 
 form.addEventListener("submit", async (event) => {
   event.preventDefault();
   const topic = topicEl.value.trim();
   if (!topic) return;
-
+ 
   button.disabled = true;
   button.textContent = "Running...";
   statusEl.textContent = "Running";
@@ -314,37 +320,37 @@ form.addEventListener("submit", async (event) => {
   logPanel.classList.add("show");
   resetSteps();
   setStep(1);
-
+ 
   try {
-    const response = await fetch("/api/stream", {
+    const response = await fetch(`${API_BASE}/api/stream`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ topic, max_sub_questions: 6 }),
     });
-
+ 
     if (!response.ok || !response.body) {
       throw new Error(`Server returned ${response.status}`);
     }
-
+ 
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
     let buffer = "";
-
+ 
     while (true) {
       const { value, done } = await reader.read();
       if (done) break;
       buffer += decoder.decode(value, { stream: true });
-
+ 
       const parts = buffer.split("\n\n");
       buffer = parts.pop();
-
+ 
       for (const part of parts) {
         const line = part.trim();
         if (!line.startsWith("data:")) continue;
         const jsonStr = line.slice(5).trim();
         let evt;
         try { evt = JSON.parse(jsonStr); } catch { continue; }
-
+ 
         if (evt.event === "node_done") {
           addLogLine(`[${evt.node}] ${evt.message}`);
           const stepNum = NODE_TO_STEP[evt.node];
