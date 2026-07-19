@@ -16,6 +16,9 @@ TAVILY_API_KEY = os.getenv("TAVILY_API_KEY", "")
 
 # ── Model settings ─────────────────────────────────────────────
 GROQ_MODEL = "llama-3.3-70b-versatile"   # Best free model on Groq
+# Used automatically when GROQ_MODEL hits its daily token limit (much higher
+# free-tier TPD than the 70B model, so runs keep working under load).
+GROQ_FALLBACK_MODEL = os.getenv("GROQ_FALLBACK_MODEL", "llama-3.1-8b-instant")
 GROQ_BASE_URL = "https://api.groq.com/openai/v1"
 
 # ── Agent behaviour ────────────────────────────────────────────
